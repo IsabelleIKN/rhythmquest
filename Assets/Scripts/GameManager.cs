@@ -6,17 +6,23 @@ using TMPro;
 public class GameManager : MonoBehaviour
 {
     public static GameManager instance;
-
-    [SerializeField] private int gridSize = 5;
-    [SerializeField] private int[,] levelArray;
+    private int[,] levelArray;
     private GameObject[,] tileArray;
+    private int rows;
+    private int cols;
     [SerializeField] private GameObject tilePrefab;
-    [SerializeField] private bool isPlaying;
+    [SerializeField] private GameObject playerPrefab;
+    [SerializeField] private GameObject treasurePrefab;
+    [SerializeField] private GameObject[] enemyPrefab;
+    private bool isPlaying = false;
+
+    [SerializeField] int CameraYOffset = 5;
+    [SerializeField] int CameraZOffset = -3;
 
     private Color tileColor1 = Color.cyan;
     private Color tileColor2 = Color.magenta;
     private bool toggleColor = false;
-    [SerializeField] private float interval = 0.5f;
+    [SerializeField] private float interval = 2f;
 
     public HLP.KeyPress lastInput = HLP.KeyPress.None;
     public Transform player;
@@ -34,31 +40,37 @@ public class GameManager : MonoBehaviour
     }
 
     private void Start() {
-        GenerateLevel();
-        isPlaying = true;
-        StartCoroutine(Tick(interval));
+
+        StartCoroutine(GenerateLevel(interval));
+
     }
 
     IEnumerator Tick(float interval)
     {
         while (isPlaying)
         {
+            yield return new WaitForSeconds(interval / 2);
+            Debug.Log("Half Tick");
+            SwitchGridColors();
+            
+            yield return new WaitForSeconds(interval / 2);
             Debug.Log("Tick");
             SwitchGridColors();
             MovePlayer();
-            yield return new WaitForSeconds(interval);
         }
         
 
     }
 
-    private void GenerateLevel()
+    IEnumerator GenerateLevel(float interval)
     {
-        levelArray = new int[gridSize, gridSize];
-        tileArray = new GameObject[gridSize, gridSize];
+        levelArray = HLP.level1;
+        rows = levelArray.GetLength(0);
+        cols = levelArray.GetLength(1);
 
-        int rows = levelArray.GetLength(0);
-        int cols = levelArray.GetLength(1);
+        tileArray = new GameObject[rows, cols];
+
+        SetCameraPosition(Vector3.zero, new Vector3(rows - 1, 0, cols - 1));
 
         for (int i = 0; i < rows; i++)
         {
@@ -73,30 +85,36 @@ public class GameManager : MonoBehaviour
                 {
                     tileArray[i, j].GetComponentInChildren<Renderer>().material.color = tileColor2;
                 }
+                yield return new WaitForSeconds(interval/16);
             }
         }
+    
+        SpawnEntities();
+    }
+
+    private void SetCameraPosition(Vector3 a, Vector3 b)
+    {
+        float centerX = (a.x + b.x) * 0.5f;
+        Vector3 cameraPos = new Vector3(centerX, CameraYOffset, CameraZOffset);
+        Camera.main.transform.position = cameraPos;
     }
 
     private void SwitchGridColors()
     {
-        // Get the dimensions of your 2D array
-        int rows = tileArray.GetLength(0);
-        int cols = tileArray.GetLength(1);
-
-            // Loop through each element in the 2D array
+            // Loop door de array heen
             for (int i = 0; i < rows; i++)
             {
                 for (int j = 0; j < cols; j++)
                 {
                     Color targetColor;
-                    if ((i + j) % 2 == 0) // Even positions
+                    if ((i + j) % 2 == 0) // Even posities
                     {
                         targetColor = toggleColor ? tileColor1 : tileColor2;
-                    } else { // Odd positions
+                    } else { // Oneven positions
                         targetColor = toggleColor ? tileColor2 : tileColor1;
                     }
 
-                // Apply the color
+                // Kleur toepassen
                 Renderer renderer = tileArray[i, j].GetComponentInChildren<Renderer>();
                 if (renderer != null)
                 {
@@ -105,30 +123,68 @@ public class GameManager : MonoBehaviour
                 }
             }
 
-            // Toggle the color for the next iteration
+            // Switch de kleur voor de volgende tick
             toggleColor = !toggleColor;
+    }
+
+    private void SpawnEntities()
+    {
+        for (int i = 0; i < rows; i++)
+        {
+            for (int j = 0; j < cols; j++)
+            {
+                if(levelArray[i, j] == 1)
+                {
+                    Instantiate(playerPrefab, new Vector3(i, 0, j), Quaternion.identity);
+                } else if (levelArray[i, j] == 2)
+                {
+                    // Spawn treasures
+                    Instantiate(treasurePrefab, new Vector3(i, 0, j), Quaternion.identity);
+                } else if (levelArray[i, j] == 3)
+                {
+                    // Spawn enemies
+                    Instantiate(enemyPrefab[Random.Range(0, enemyPrefab.Length)], new Vector3(i, 0, j), Quaternion.identity);
+                }
+            }
+        }
+
+        isPlaying = true;
+        StartCoroutine(Tick(interval));
     }
 
     private void MovePlayer()
     {
-        // TODO: check if can move in specified direction
-        // Use array for coordinates?
+        int pRow = (int)player.transform.position.x;
+        int pCol = (int)player.transform.position.z;
+
         switch (lastInput)
         {
-            case HLP.KeyPress.Up:
-            player.transform.Translate(0, 0, 1);
-            break;
-
-            case HLP.KeyPress.Down:
-            player.transform.Translate(0, 0, -1);
-            break;
-
             case HLP.KeyPress.Left:
-            player.transform.Translate(-1, 0, 0);
+            if (pRow > 0)
+            {
+                player.transform.Translate(-1, 0, 0);
+            }
             break;
 
             case HLP.KeyPress.Right:
-            player.transform.Translate(1, 0, 0);
+            if (pRow < rows - 1)
+            {
+                player.transform.Translate(1, 0, 0);
+            }
+            break;
+
+            case HLP.KeyPress.Up:
+            if (pCol < cols - 1)
+            {
+                player.transform.Translate(0, 0, 1);
+            }
+            break;
+
+            case HLP.KeyPress.Down:
+            if (pCol > 0)
+            {
+                player.transform.Translate(0, 0, -1);
+            }
             break;
 
             default:
