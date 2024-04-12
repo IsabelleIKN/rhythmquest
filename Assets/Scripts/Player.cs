@@ -14,7 +14,7 @@ public class Player : MonoBehaviour
         };
 
         lastInput = HLP.Dir.None;
-        GameManager.instance.UpdateUI("Last Input: None");
+        GameManager.instance.UpdateUiWithIput("Last Input: None");
     }
 
     void Update()
@@ -27,22 +27,22 @@ public class Player : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.W)) {
             lastInput = HLP.Dir.Up;
-            GameManager.instance.UpdateUI("Last Input: W");   
+            GameManager.instance.UpdateUiWithIput("Last Input: W");   
         }
 
         if (Input.GetKeyDown(KeyCode.A)) {
             lastInput = HLP.Dir.Left;
-            GameManager.instance.UpdateUI("Last Input: A");
+            GameManager.instance.UpdateUiWithIput("Last Input: A");
         }
 
         if (Input.GetKeyDown(KeyCode.S)) {
             lastInput = HLP.Dir.Down;
-            GameManager.instance.UpdateUI("Last Input: S");
+            GameManager.instance.UpdateUiWithIput("Last Input: S");
         }
 
         if (Input.GetKeyDown(KeyCode.D)) {
             lastInput = HLP.Dir.Right;
-            GameManager.instance.UpdateUI("Last Input: D");
+            GameManager.instance.UpdateUiWithIput("Last Input: D");
         }
     }
 

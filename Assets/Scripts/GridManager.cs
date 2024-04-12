@@ -7,8 +7,8 @@ using UnityEngine.Video;
 public class GridManager : MonoBehaviour
 {
     [SerializeField] private GameObject tilePrefab;
-    [SerializeField] private float genSpeed;
-    [SerializeField] private float blinkSpeed;
+    [SerializeField] private float genRate;
+    [SerializeField] private float blinkRate;
     private GameObject[,] tileArray;
     private int rows;
     private int cols;
@@ -18,20 +18,15 @@ public class GridManager : MonoBehaviour
     [SerializeField] private Color tileColor2;
     private bool toggleColor = false;
 
-    // Start is called before the first frame update
-    void Start()
-    {
-        GameManager.instance.grid = this;
-    }
 
     public void GenerateGrid(int[,] layout, float interval)
     {
-        StartCoroutine(IE_GenerateTiles(layout, interval, genSpeed));
+        StartCoroutine(IE_GenerateTiles(layout, interval, genRate));
     }
 
     public void StartBlinking(float interval)
     {
-        StartCoroutine(IE_BlinkGrid(interval, blinkSpeed));
+        StartCoroutine(IE_BlinkGrid(interval, blinkRate));
     }
 
     IEnumerator IE_GenerateTiles(int[,] layout, float interval, float factor)
@@ -130,7 +125,8 @@ public class GridManager : MonoBehaviour
 
     public void ClearGrid(float interval)
     {
-        StartCoroutine(IE_ClearGrid(interval, genSpeed));
+        StopAllCoroutines();
+        StartCoroutine(IE_ClearGrid(interval, genRate));
     }
 
     IEnumerator IE_ClearGrid(float interval, float factor)

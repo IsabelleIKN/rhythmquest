@@ -6,23 +6,36 @@ public class CameraControl : MonoBehaviour
     [SerializeField] private float startPosY;
     private float startPosZ;
 
+    private Vector3 startPos;
+
     [SerializeField] private Vector3 followOffset;
+    [SerializeField] private float moveSpeed = 1f;
 
     public bool isFollowing = false;
-    public bool isReset = false;
+    public bool backToStart = false;
 
+    private Transform player;
 
+    public void SetPlayer(Transform target)
+    {
+        player = target;
+    }
 
     private void Update()
     {
-        if (isFollowing && GameManager.instance.player != null)
+        if (isFollowing && player != null)
         {
-            FollowTarget(GameManager.instance.player.transform);
+            FollowPlayer(player);
         }
 
-        if (isReset)
+        if (backToStart)
         {
-
+            MoveCamera(startPos);
+            if(Vector3.Distance(transform.position, startPos) < 0.1f)
+            {
+                transform.position = startPos;
+                backToStart = false;
+            } 
         }
     }
 
@@ -31,11 +44,11 @@ public class CameraControl : MonoBehaviour
         startPosX = maxCols * 0.5f;
         startPosZ = maxRows;
 
-        Vector3 cameraPos = new Vector3(startPosX, startPosY, -startPosZ);
-        transform.position = cameraPos;
+        startPos = new Vector3(startPosX, startPosY, -startPosZ);
+        transform.position = startPos;
     }
 
-    public void FollowTarget(Transform target)
+    private void FollowPlayer(Transform target)
     {
         Vector3 targetPos = target.position;
 
@@ -43,11 +56,11 @@ public class CameraControl : MonoBehaviour
         targetPos.y += followOffset.y;
         targetPos.z += followOffset.z;
 
-        transform.position = Vector3.Lerp(transform.position, targetPos, 0.1f);
+        MoveCamera(targetPos);
     }
 
-    public void GoToStart()
+    private void MoveCamera(Vector3 targetPos)
     {
-
+        transform.position = Vector3.Lerp(transform.position, targetPos, moveSpeed * Time.deltaTime);
     }
 }

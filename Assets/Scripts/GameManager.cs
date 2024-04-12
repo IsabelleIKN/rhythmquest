@@ -1,16 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Video;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager instance;
-    public GridManager grid;
     private int[,] levelArray;
     private int rows;
     private int cols;
     private int currentLevel = 0;
-    
+
     [SerializeField] private GameObject playerPrefab;
     [SerializeField] private GameObject wallPrefab;
     [SerializeField] private GameObject treasurePrefab;
@@ -19,28 +19,39 @@ public class GameManager : MonoBehaviour
     private List<Enemy> enemies = new();
     private List<GameObject> treasures = new();
     private List<GameObject> walls = new();
-    
+
+    private int totalTreasure = 0;
+
     public bool isPlaying = false;
     [SerializeField] private float interval = 2f;
 
-    public Player player;
-    public UIManager ui;
+    private Player player;
+    private UIManager ui;
     private CameraControl camCtrl;
+    private GridManager grid;
 
-    
+
 
     void Awake()
     {
-        if(instance == null) { 
+        if (instance == null)
+        {
             instance = this;
             Debug.Log("GM: Set instance");
-        } else {
+        }
+        else
+        {
             Debug.Log("GM: Double — destroyed");
             Destroy(gameObject);
         }
     }
 
-    private void Start() {
+    private void Start()
+    {
+        ui = FindObjectOfType<UIManager>();
+        grid = FindObjectOfType<GridManager>();
+
+        Debug.Log("GM: Starting with level " + currentLevel);
 
         levelArray = HLP.level1; // TODO: dynamisch maken
         grid.GenerateGrid(levelArray, interval);
@@ -50,8 +61,6 @@ public class GameManager : MonoBehaviour
 
         camCtrl = Camera.main.GetComponent<CameraControl>();
         camCtrl.SetCameraStart(rows, cols);
-        
-        Debug.Log("GM: Starting with level " + currentLevel);
 
     }
 
@@ -65,22 +74,26 @@ public class GameManager : MonoBehaviour
                 //met rows (y) in de -z, en columns (x) in de +x.
                 Vector3 spawnLoc = new Vector3(j, 0, -i);
 
-                if(levelArray[i, j] == 2)
+                if (levelArray[i, j] == 2)
                 {
                     // Spawn Walls
                     GameObject w = Instantiate(wallPrefab, spawnLoc, Quaternion.identity);
                     walls.Add(w);
-                } else if (levelArray[i, j] == 3)
+                }
+                else if (levelArray[i, j] == 3)
                 {
                     // Spawn player
                     GameObject p = Instantiate(playerPrefab, spawnLoc, Quaternion.identity);
                     player = p.GetComponent<Player>();
-                } else if (levelArray[i, j] == 4)
+                }
+                else if (levelArray[i, j] == 4)
                 {
                     // Spawn treasures
                     GameObject t = Instantiate(treasurePrefab, spawnLoc, Quaternion.identity);
                     treasures.Add(t);
-                } else if (levelArray[i, j] == 5)
+                    totalTreasure++;
+                }
+                else if (levelArray[i, j] == 5)
                 {
                     // Spawn enemies
                     GameObject e = Instantiate(enemyPrefab, spawnLoc, Quaternion.identity);
@@ -91,95 +104,108 @@ public class GameManager : MonoBehaviour
 
         Debug.Log("GM: Entities spawned");
 
-        isPlaying = true;
         StartLevel(interval);
-        
+
     }
 
-   
-   private void StartLevel(float interval)
-   {
 
+    private void StartLevel(float interval)
+    {
+        isPlaying = true;
+        
+        player = FindObjectOfType<Player>();
+        camCtrl.SetPlayer(player.transform);
         camCtrl.isFollowing = true;
+
         grid.StartBlinking(interval);
         StartCoroutine(Step(interval));
         // Start music
+        UpdateUiWithTreasureCount();
 
         Debug.Log("GM: Started level");
 
-   }
+    }
 
-    
+
     // Ik wil de volgorde kunnen bepalen waarin enemies en player bewegen.
-    // Kan ook met losse coroutines op individuele agents, maar dan moet ik 
-    // de state van het level bijhouden en plekken 'reserveren' voor movement.
+    // Next level: move towards locatie 'reserveren' in een grid.
     // Moeilijk :(
-   IEnumerator Step(float interval)
-   {
-       while(isPlaying)
-       {
-            float enemyDelay = enemies.Count * 0.01f;
-           yield return new WaitForSeconds(interval - enemyDelay);
-           foreach (Enemy enemy in enemies)
-           {
-               enemy.Move();
-               yield return new WaitForSeconds(0.01f);
-           }
+    IEnumerator Step(float interval)
+    {
+        while (isPlaying)
+        {
+            // Slaan de locatie van de speler op zodat enemies 'achter' de speler aan lopen.
+            Vector3 playerPosCached = player.transform.position;
+
+            yield return new WaitForSeconds(interval);
 
             player.Move();
-       }
-   }
 
-   public void UpdateUI(string lastkey)
-   {
+            foreach (Enemy enemy in enemies)
+            {
+                enemy.Move(playerPosCached);
+                yield return new WaitForEndOfFrame();
+            }
+
+        }
+    }
+
+    public void UpdateUiWithIput(string lastkey)
+    {
         ui.UpdateLastKey(lastkey);
-   }
+    }
 
-   public void PlayerDeath()
-   {
+    public void UpdateUiWithTreasureCount()
+    {
+        ui.UpdateTreasureCount(totalTreasure - treasures.Count, totalTreasure);
+    }
+
+    public void PlayerDeath()
+    {
         ClearLevel();
         // Show loss UI
         Debug.Log("GM: You dead!");
-   }
+    }
 
-   public void CollectTreasure(GameObject treasure)
-   {
+    public void CollectTreasure(GameObject treasure)
+    {
         treasures.Remove(treasure);
         Destroy(treasure);
+        UpdateUiWithTreasureCount();
 
-        if(treasures.Count == 0)
+        if (treasures.Count == 0)
         {
             ClearLevel();
             // Show victory UI
             Debug.Log("GM: Level won!");
         }
-   }
+    }
 
-   private void ClearLevel()
-   {
+    private void ClearLevel()
+    {
         StopAllCoroutines();
         isPlaying = false;
 
         camCtrl.isFollowing = false;
+        camCtrl.backToStart = true;
 
         ClearEnemies();
         ClearPlayer();
         ClearWalls();
         ClearTreasures();
 
-        // Reset camera to start position
 
         grid.ClearGrid(interval);
-   }
+    }
 
-   private void ClearEnemies()
-   {
+    private void ClearEnemies()
+    {
         foreach (Enemy enemy in enemies)
         {
             Destroy(enemy.gameObject);
         }
         enemies.Clear();
-   }
+    }
 
     private void ClearWalls()
     {
@@ -192,7 +218,7 @@ public class GameManager : MonoBehaviour
 
     private void ClearPlayer()
     {
-        if (player != null) 
+        if (player != null)
         {
             Destroy(player.gameObject);
         }
@@ -205,7 +231,8 @@ public class GameManager : MonoBehaviour
             Destroy(t);
         }
         treasures.Clear();
+        totalTreasure = 0;
     }
-   
+
 
 }

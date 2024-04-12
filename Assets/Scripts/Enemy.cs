@@ -4,16 +4,16 @@ using UnityEngine;
 
 public class Enemy : MonoBehaviour
 {
-    public void Move()
+    public void Move(Vector3 playerPos)
     {
             Vector3 moveDir = Vector3.zero;
-            moveDir = ChooseMoveDirection();
+            moveDir = ChooseMoveDirection(playerPos);
             transform.Translate(moveDir);
     }
 
-    private Vector3 ChooseMoveDirection()
+    private Vector3 ChooseMoveDirection(Vector3 playerPos)
     {
-        Vector3 primaryDirection = DeterminePrimaryDirection(GameManager.instance.player.transform);
+        Vector3 primaryDirection = DeterminePrimaryDirection(playerPos);
         Vector3[] directions = { Vector3.left, Vector3.right, Vector3.forward, Vector3.back };
 
         if (CanMove(primaryDirection))
@@ -35,12 +35,12 @@ public class Enemy : MonoBehaviour
         return Vector3.zero;
     }
 
-    private Vector3 DeterminePrimaryDirection(Transform target)
+    private Vector3 DeterminePrimaryDirection(Vector3 target)
     {
         Vector3 direction = Vector3.zero;
 
-        float xDifference = target.position.x - transform.position.x;
-        float zDifference = target.position.z - transform.position.z;
+        float xDifference = target.x - transform.position.x;
+        float zDifference = target.z - transform.position.z;
 
         if (Mathf.Abs(xDifference) > Mathf.Abs(zDifference))
         {

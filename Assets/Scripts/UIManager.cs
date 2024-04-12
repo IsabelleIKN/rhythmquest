@@ -1,24 +1,19 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 
 public class UIManager : MonoBehaviour
 {
 
-        public TextMeshProUGUI lastInputTxt;
+    [SerializeField] private TextMeshProUGUI lastInputTxt;
+    [SerializeField] private TextMeshProUGUI treasureTxt;
 
-
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        GameManager.instance.ui = this;
-    }
-
-    // Update is called once per frame
     public void UpdateLastKey(string input)
     {
         lastInputTxt.text = input;
+    }
+
+    public void UpdateTreasureCount(int count, int total)
+    {
+        treasureTxt.text = count + " / " + total;
     }
 }
