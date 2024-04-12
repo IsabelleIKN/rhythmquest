@@ -1,221 +1,211 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using TMPro;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager instance;
+    public GridManager grid;
     private int[,] levelArray;
-    private GameObject[,] tileArray;
     private int rows;
     private int cols;
-    [SerializeField] private GameObject tilePrefab;
+    private int currentLevel = 0;
+    
     [SerializeField] private GameObject playerPrefab;
+    [SerializeField] private GameObject wallPrefab;
     [SerializeField] private GameObject treasurePrefab;
-    [SerializeField] private GameObject[] enemyPrefab;
-    private bool isPlaying = false;
+    [SerializeField] private GameObject enemyPrefab;
 
-    [SerializeField] int CameraYOffset = 5;
-    [SerializeField] int CameraZOffset = -3;
-
-    private Color tileColor1 = Color.cyan;
-    private Color tileColor2 = Color.magenta;
-    private bool toggleColor = false;
+    private List<Enemy> enemies = new();
+    private List<GameObject> treasures = new();
+    private List<GameObject> walls = new();
+    
+    public bool isPlaying = false;
     [SerializeField] private float interval = 2f;
 
-    public HLP.KeyPress lastInput = HLP.KeyPress.None;
-    public Transform player;
+    public Player player;
+    public UIManager ui;
+    private CameraControl camCtrl;
 
-    public TextMeshProUGUI lastInputTxt;
     
 
     void Awake()
     {
         if(instance == null) { 
             instance = this;
+            Debug.Log("GM: Set instance");
         } else {
+            Debug.Log("GM: Double — destroyed");
             Destroy(gameObject);
         }
     }
 
     private void Start() {
 
-        StartCoroutine(GenerateLevel(interval));
+        levelArray = HLP.level1; // TODO: dynamisch maken
+        grid.GenerateGrid(levelArray, interval);
 
-    }
-
-    IEnumerator Tick(float interval)
-    {
-        while (isPlaying)
-        {
-            yield return new WaitForSeconds(interval / 2);
-            Debug.Log("Half Tick");
-            SwitchGridColors();
-            
-            yield return new WaitForSeconds(interval / 2);
-            Debug.Log("Tick");
-            SwitchGridColors();
-            MovePlayer();
-        }
-        
-
-    }
-
-    IEnumerator GenerateLevel(float interval)
-    {
-        levelArray = HLP.level1;
         rows = levelArray.GetLength(0);
         cols = levelArray.GetLength(1);
 
-        tileArray = new GameObject[rows, cols];
+        camCtrl = Camera.main.GetComponent<CameraControl>();
+        camCtrl.SetCameraStart(rows, cols);
+        
+        Debug.Log("GM: Starting with level " + currentLevel);
 
-        SetCameraPosition(Vector3.zero, new Vector3(rows - 1, 0, cols - 1));
-
-        for (int i = 0; i < rows; i++)
-        {
-            for (int j = 0; j < cols; j++)
-            {
-                GameObject tile = Instantiate(tilePrefab, new Vector3(i, 0, j), Quaternion.identity);
-                tileArray[i,j] = tile;
-                if ((i + j) % 2 == 0)
-                {
-                    tileArray[i, j].GetComponentInChildren<Renderer>().material.color = tileColor1;
-                } else
-                {
-                    tileArray[i, j].GetComponentInChildren<Renderer>().material.color = tileColor2;
-                }
-                yield return new WaitForSeconds(interval/16);
-            }
-        }
-    
-        SpawnEntities();
     }
 
-    private void SetCameraPosition(Vector3 a, Vector3 b)
-    {
-        float centerX = (a.x + b.x) * 0.5f;
-        Vector3 cameraPos = new Vector3(centerX, CameraYOffset, CameraZOffset);
-        Camera.main.transform.position = cameraPos;
-    }
-
-    private void SwitchGridColors()
-    {
-            // Loop door de array heen
-            for (int i = 0; i < rows; i++)
-            {
-                for (int j = 0; j < cols; j++)
-                {
-                    Color targetColor;
-                    if ((i + j) % 2 == 0) // Even posities
-                    {
-                        targetColor = toggleColor ? tileColor1 : tileColor2;
-                    } else { // Oneven positions
-                        targetColor = toggleColor ? tileColor2 : tileColor1;
-                    }
-
-                // Kleur toepassen
-                Renderer renderer = tileArray[i, j].GetComponentInChildren<Renderer>();
-                if (renderer != null)
-                {
-                    renderer.material.color = targetColor;
-                }
-                }
-            }
-
-            // Switch de kleur voor de volgende tick
-            toggleColor = !toggleColor;
-    }
-
-    private void SpawnEntities()
+    public void SpawnEntities()
     {
         for (int i = 0; i < rows; i++)
         {
             for (int j = 0; j < cols; j++)
             {
-                if(levelArray[i, j] == 1)
+                // Ik wil het grid spawnen zoals ik hem zie in de 2D array,
+                //met rows (y) in de -z, en columns (x) in de +x.
+                Vector3 spawnLoc = new Vector3(j, 0, -i);
+
+                if(levelArray[i, j] == 2)
                 {
-                    Instantiate(playerPrefab, new Vector3(i, 0, j), Quaternion.identity);
-                } else if (levelArray[i, j] == 2)
-                {
-                    // Spawn treasures
-                    Instantiate(treasurePrefab, new Vector3(i, 0, j), Quaternion.identity);
+                    // Spawn Walls
+                    GameObject w = Instantiate(wallPrefab, spawnLoc, Quaternion.identity);
+                    walls.Add(w);
                 } else if (levelArray[i, j] == 3)
                 {
+                    // Spawn player
+                    GameObject p = Instantiate(playerPrefab, spawnLoc, Quaternion.identity);
+                    player = p.GetComponent<Player>();
+                } else if (levelArray[i, j] == 4)
+                {
+                    // Spawn treasures
+                    GameObject t = Instantiate(treasurePrefab, spawnLoc, Quaternion.identity);
+                    treasures.Add(t);
+                } else if (levelArray[i, j] == 5)
+                {
                     // Spawn enemies
-                    Instantiate(enemyPrefab[Random.Range(0, enemyPrefab.Length)], new Vector3(i, 0, j), Quaternion.identity);
+                    GameObject e = Instantiate(enemyPrefab, spawnLoc, Quaternion.identity);
+                    enemies.Add(e.GetComponent<Enemy>());
                 }
             }
         }
 
+        Debug.Log("GM: Entities spawned");
+
         isPlaying = true;
-        StartCoroutine(Tick(interval));
+        StartLevel(interval);
+        
     }
 
-    private void MovePlayer()
-    {
-        int pRow = (int)player.transform.position.x;
-        int pCol = (int)player.transform.position.z;
+   
+   private void StartLevel(float interval)
+   {
 
-        switch (lastInput)
+        camCtrl.isFollowing = true;
+        grid.StartBlinking(interval);
+        StartCoroutine(Step(interval));
+        // Start music
+
+        Debug.Log("GM: Started level");
+
+   }
+
+    
+    // Ik wil de volgorde kunnen bepalen waarin enemies en player bewegen.
+    // Kan ook met losse coroutines op individuele agents, maar dan moet ik 
+    // de state van het level bijhouden en plekken 'reserveren' voor movement.
+    // Moeilijk :(
+   IEnumerator Step(float interval)
+   {
+       while(isPlaying)
+       {
+            float enemyDelay = enemies.Count * 0.01f;
+           yield return new WaitForSeconds(interval - enemyDelay);
+           foreach (Enemy enemy in enemies)
+           {
+               enemy.Move();
+               yield return new WaitForSeconds(0.01f);
+           }
+
+            player.Move();
+       }
+   }
+
+   public void UpdateUI(string lastkey)
+   {
+        ui.UpdateLastKey(lastkey);
+   }
+
+   public void PlayerDeath()
+   {
+        ClearLevel();
+        // Show loss UI
+        Debug.Log("GM: You dead!");
+   }
+
+   public void CollectTreasure(GameObject treasure)
+   {
+        treasures.Remove(treasure);
+        Destroy(treasure);
+
+        if(treasures.Count == 0)
         {
-            case HLP.KeyPress.Left:
-            if (pRow > 0)
-            {
-                player.transform.Translate(-1, 0, 0);
-            }
-            break;
-
-            case HLP.KeyPress.Right:
-            if (pRow < rows - 1)
-            {
-                player.transform.Translate(1, 0, 0);
-            }
-            break;
-
-            case HLP.KeyPress.Up:
-            if (pCol < cols - 1)
-            {
-                player.transform.Translate(0, 0, 1);
-            }
-            break;
-
-            case HLP.KeyPress.Down:
-            if (pCol > 0)
-            {
-                player.transform.Translate(0, 0, -1);
-            }
-            break;
-
-            default:
-            break;
+            ClearLevel();
+            // Show victory UI
+            Debug.Log("GM: Level won!");
         }
+   }
 
-        lastInput = HLP.KeyPress.None;
-        lastInputTxt.text = "Last Input: None";
-    }
+   private void ClearLevel()
+   {
+        StopAllCoroutines();
+        isPlaying = false;
 
-    void Update()
+        camCtrl.isFollowing = false;
+
+        ClearEnemies();
+        ClearPlayer();
+        ClearWalls();
+        ClearTreasures();
+
+        // Reset camera to start position
+
+        grid.ClearGrid(interval);
+   }
+
+   private void ClearEnemies()
+   {
+        foreach (Enemy enemy in enemies)
+        {
+            Destroy(enemy.gameObject);
+        }
+        enemies.Clear();
+   }
+
+    private void ClearWalls()
     {
-        if (Input.GetKeyDown(KeyCode.W)) {
-            lastInputTxt.text = "Last Input: W";
-            lastInput = HLP.KeyPress.Up;
+        foreach (GameObject w in walls)
+        {
+            Destroy(w);
         }
+        walls.Clear();
+    }
 
-        if (Input.GetKeyDown(KeyCode.A)) {
-            lastInputTxt.text = "Last Input: A";
-            lastInput = HLP.KeyPress.Left;
-        }
-
-        if (Input.GetKeyDown(KeyCode.S)) {
-            lastInputTxt.text = "Last Input: S";
-            lastInput = HLP.KeyPress.Down;
-        }
-
-        if (Input.GetKeyDown(KeyCode.D)) {
-            lastInputTxt.text = "Last Input: D";
-            lastInput = HLP.KeyPress.Right;
+    private void ClearPlayer()
+    {
+        if (player != null) 
+        {
+            Destroy(player.gameObject);
         }
     }
+
+    private void ClearTreasures()
+    {
+        foreach (GameObject t in treasures)
+        {
+            Destroy(t);
+        }
+        treasures.Clear();
+    }
+   
 
 }

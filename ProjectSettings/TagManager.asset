@@ -6,6 +6,8 @@ TagManager:
   tags:
   - Treasure
   - Enemy
+  - Empty
+  - Wall
   layers:
   - Default
   - TransparentFX
