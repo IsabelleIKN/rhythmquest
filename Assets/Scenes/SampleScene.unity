@@ -626,7 +626,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   startPosY: 5
-  followOffset: {x: 1, y: 2, z: -2}
+  followOffset: {x: 1, y: 3, z: -3}
   moveSpeed: 5
   isFollowing: 0
   backToStart: 0
