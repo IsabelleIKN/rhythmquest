@@ -128,8 +128,8 @@ public class GameManager : MonoBehaviour
 
 
     // Ik wil de volgorde kunnen bepalen waarin enemies en player bewegen.
-    // Next level: move towards locatie 'reserveren' in een grid.
-    // Moeilijk :(
+    // Next level: move towards locatie 'reserveren' in een list oid
+    // Geen zin in :(
     IEnumerator Step(float interval)
     {
         while (isPlaying)
